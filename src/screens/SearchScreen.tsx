@@ -50,12 +50,18 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
         }
     };
 
+    const [isNavigating, setIsNavigating] = useState(false);
+
     const handleSelectCity = async (city: any) => {
+        if (isNavigating) return;
+        setIsNavigating(true);
         await fetchWeatherByCity(city.name);
         navigation.goBack();
     };
 
     const handleSelectSavedLocation = async (location: any) => {
+        if (isNavigating) return;
+        setIsNavigating(true);
         await fetchWeatherByCity(location.name);
         navigation.goBack();
     };
@@ -67,7 +73,12 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
         >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <TouchableOpacity onPress={() => {
+                        if (!isNavigating) {
+                            setIsNavigating(true);
+                            navigation.goBack();
+                        }
+                    }}>
                         <X size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Search Location</Text>

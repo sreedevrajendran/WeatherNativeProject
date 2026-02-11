@@ -5,7 +5,7 @@ import {
     startLocationTracking,
     stopLocationTracking,
     isLocationTrackingActive,
-    sendTestNotification,
+    syncNotificationSchedules,
 } from '../services/notificationService';
 
 interface NotificationContextType {
@@ -13,7 +13,6 @@ interface NotificationContextType {
     locationTrackingEnabled: boolean;
     enableNotifications: () => Promise<boolean>;
     disableNotifications: () => Promise<void>;
-    sendTest: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -38,27 +37,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const enableNotifications = async (): Promise<boolean> => {
         try {
-            // Check if running in Expo Go on Android
-            // (You might import Constants from expo-constants to check appOwnership if needed,
-            // but a try-catch is often robust enough for the "removed" error)
-
-            // Request notification permissions
+            // 1. Request notification permissions
             const notifPermission = await requestNotificationPermissions();
             if (!notifPermission) {
                 return false;
             }
 
-            // Start background location tracking
-            const trackingStarted = await startLocationTracking();
-            if (!trackingStarted) {
-                return false;
-            }
-
+            // 2. Enable notifications state immediately (so UI updates)
             setNotificationsEnabled(true);
-            setLocationTrackingEnabled(true);
 
-            // Send test notification
-            await sendTestNotification();
+            // 3. Schedule detailed notifications (Daily/Tomorrow) - Independent of location tracking
+            await syncNotificationSchedules();
+
+            // 4. Start background location tracking (Best effort)
+            // This is needed for "Severe Weather" and "Rain/Snow" alerts
+            const trackingStarted = await startLocationTracking();
+            setLocationTrackingEnabled(trackingStarted);
+
+            if (!trackingStarted) {
+                console.log('Background location tracking failed or denied. Only scheduled content will work.');
+            }
 
             return true;
         } catch (error: any) {
@@ -66,6 +64,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
             if (error?.message?.includes('expo-notifications') || error?.toString().includes('expo-notifications')) {
                 Alert.alert('Not Supported', 'Push notifications are not fully supported in Expo Go on Android. Please use a development build.');
             }
+            // If we set enabled=true but hit a critical error, maybe revert?
+            setNotificationsEnabled(false);
             return false;
         }
     };
@@ -80,10 +80,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     };
 
-    const sendTest = async () => {
-        await sendTestNotification();
-    };
-
     return (
         <NotificationContext.Provider
             value={{
@@ -91,7 +87,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
                 locationTrackingEnabled,
                 enableNotifications,
                 disableNotifications,
-                sendTest,
             }}
         >
             {children}

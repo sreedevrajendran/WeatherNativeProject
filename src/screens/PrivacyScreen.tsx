@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { X } from 'lucide-react-native';
 import { WeatherBackground } from '../components/ui/WeatherBackground';
@@ -11,6 +11,7 @@ interface PrivacyScreenProps {
 
 export const PrivacyScreen: React.FC<PrivacyScreenProps> = ({ navigation }) => {
     const { weatherData } = useWeather();
+    const [isNavigating, setIsNavigating] = useState(false);
 
     return (
         <WeatherBackground
@@ -19,7 +20,12 @@ export const PrivacyScreen: React.FC<PrivacyScreenProps> = ({ navigation }) => {
         >
             <View style={styles.container}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <TouchableOpacity onPress={() => {
+                        if (!isNavigating) {
+                            setIsNavigating(true);
+                            navigation.goBack();
+                        }
+                    }}>
                         <X size={24} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Privacy Statement</Text>

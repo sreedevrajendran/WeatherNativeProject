@@ -120,6 +120,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
     };
 
+    const [isNavigating, setIsNavigating] = useState(false);
+
     return (
         <WeatherBackground
             condition={weatherData?.current.condition.text}
@@ -129,7 +131,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Settings</Text>
                     <TouchableOpacity
-                        onPress={() => navigation.goBack()}
+                        onPress={() => {
+                            if (!isNavigating) {
+                                setIsNavigating(true);
+                                navigation.goBack();
+                            }
+                        }}
                         style={styles.closeButton}
                     >
                         <X size={24} color="#fff" />
