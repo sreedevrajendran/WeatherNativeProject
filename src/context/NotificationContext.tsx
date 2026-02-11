@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     requestNotificationPermissions,
     startLocationTracking,
@@ -7,6 +8,8 @@ import {
     isLocationTrackingActive,
     syncNotificationSchedules,
 } from '../services/notificationService';
+
+const NOTIF_KEY = '@notifications_enabled';
 
 interface NotificationContextType {
     notificationsEnabled: boolean;
@@ -26,31 +29,44 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(false);
 
     useEffect(() => {
-        checkTrackingStatus();
+        loadState();
     }, []);
 
-    const checkTrackingStatus = async () => {
-        const isActive = await isLocationTrackingActive();
-        setLocationTrackingEnabled(isActive);
-        setNotificationsEnabled(isActive);
+    const loadState = async () => {
+        try {
+            // Load persistent preference
+            const stored = await AsyncStorage.getItem(NOTIF_KEY);
+
+            // Check actual tracking status
+            const trackingActive = await isLocationTrackingActive();
+            setLocationTrackingEnabled(trackingActive);
+
+            if (stored !== null) {
+                // Restore user preference
+                setNotificationsEnabled(JSON.parse(stored));
+            } else {
+                // First run or no preference: default to tracking status
+                setNotificationsEnabled(trackingActive);
+            }
+        } catch (e) {
+            console.error('Failed to load notification state', e);
+        }
     };
 
     const enableNotifications = async (): Promise<boolean> => {
         try {
             // 1. Request notification permissions
             const notifPermission = await requestNotificationPermissions();
-            if (!notifPermission) {
-                return false;
-            }
+            if (!notifPermission) return false;
 
             // 2. Enable notifications state immediately (so UI updates)
             setNotificationsEnabled(true);
+            await AsyncStorage.setItem(NOTIF_KEY, 'true');
 
-            // 3. Schedule detailed notifications (Daily/Tomorrow) - Independent of location tracking
+            // 3. Schedule detailed notifications
             await syncNotificationSchedules();
 
             // 4. Start background location tracking (Best effort)
-            // This is needed for "Severe Weather" and "Rain/Snow" alerts
             const trackingStarted = await startLocationTracking();
             setLocationTrackingEnabled(trackingStarted);
 
@@ -64,8 +80,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
             if (error?.message?.includes('expo-notifications') || error?.toString().includes('expo-notifications')) {
                 Alert.alert('Not Supported', 'Push notifications are not fully supported in Expo Go on Android. Please use a development build.');
             }
-            // If we set enabled=true but hit a critical error, maybe revert?
             setNotificationsEnabled(false);
+            await AsyncStorage.setItem(NOTIF_KEY, 'false');
             return false;
         }
     };
@@ -75,6 +91,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
             await stopLocationTracking();
             setNotificationsEnabled(false);
             setLocationTrackingEnabled(false);
+            await AsyncStorage.setItem(NOTIF_KEY, 'false');
         } catch (error) {
             console.error('Error disabling notifications:', error);
         }
