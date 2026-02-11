@@ -1,4 +1,4 @@
-# Meteora Forecast 🌦️
+# Aqu Weather 🌦️
 
 A modern, cross-platform weather application for iOS and Android built with React Native and Expo. Features real-time weather data, AI-powered alerts, and a beautiful glassmorphism UI inspired by the [meteoraforecast.netlify.app](https://meteoraforecast.netlify.app) web application.
 
